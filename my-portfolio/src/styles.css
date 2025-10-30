@@ -45,6 +45,12 @@
   
 }
 
+@layer base {
+  p {
+    @apply max-w-3xl text-left text-gray-700 mb-0 text-sm;
+  }
+}
+
 @layer utilities {
   @keyframes dsGlow {
     0%, 100% {
