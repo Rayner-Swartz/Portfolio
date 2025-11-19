@@ -30,7 +30,7 @@ export default function Layout() {
           <div className="hidden sm:flex gap-6 text-gray-300">
             <button onClick={goHome} className="hover:text-blue-400 transition">Home</button>
             <button onClick={goProjects} className="hover:text-blue-400 transition">Projects</button>
-            <Link to="/#about" className="hover:text-blue-400 transition">About</Link>
+            <Link to="/about" className="hover:text-blue-400 transition">About</Link>
             <Link to="/#contact" className="hover:text-blue-400 transition">Contact</Link>
           </div>
           <button className="sm:hidden text-gray-300">☰</button>
