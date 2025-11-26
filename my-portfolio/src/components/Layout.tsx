@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
-import ChatWidget from "../components/ChatWidget";
+
 
 export default function Layout() {
   const nav = useNavigate();
@@ -42,7 +42,7 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <ChatWidget />
+      
     </div>
   );
 }
