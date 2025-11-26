@@ -157,7 +157,7 @@ export default function LLMExperiment() {
             // Auto-colorize standalone "Debator" and "Refuter" words if not already wrapped
             const autoColorized = rest.replace(
               /\b(Debator|Refuter)\b/g, 
-              (match, word) => {
+              (_match, word) => {
                 const color = word.toLowerCase() === "debator" ? "text-blue-400" : "text-pink-400";
                 return `<span class="${color}">${word}</span>`;
               }
@@ -166,7 +166,7 @@ export default function LLMExperiment() {
             if (autoColorized !== rest) {
               // If we made changes, parse the HTML-like spans
               const htmlParts = autoColorized.split(/(<span class="[^"]*">[^<]*<\/span>)/);
-              htmlParts.forEach((part, i) => {
+              htmlParts.forEach((part, _i) => {
                 const spanMatch = part.match(/<span class="([^"]*)">(.*?)<\/span>/);
                 if (spanMatch) {
                   parts.push(
@@ -365,10 +365,6 @@ export default function LLMExperiment() {
     ];
 
     return await callChat(messages, 420);
-  }
-
-  function transcriptText(rnds: Round[]) {
-    return rnds.map((r, i) => `Round ${i + 1}\nDebator: ${r.debator}\nRefuter: ${r.refuter}`).join("\n\n");
   }
 
   async function startDebate(e: React.FormEvent) {
