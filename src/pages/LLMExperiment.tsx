@@ -12,8 +12,7 @@ export default function LLMExperiment() {
   const [error, setError] = useState("");
   const [verdict, setVerdict] = useState<string>("");
 
-  const apiKey = import.meta.env.OPENAI_API_KEY;
-  const MODEL = "gpt-4.1-nano";
+  const MODEL = "gpt-4.1-mini"; // still just a label for your own use
   const MAX_ROUNDS = 5;
 
   const styles: Record<string, { debator: string; refuter: string; label: string }> = {
@@ -40,23 +39,31 @@ export default function LLMExperiment() {
     },
   };
 
+  // ⬇️ NEW: call Netlify function instead of OpenAI directly
   async function callChat(messages: Msg[], maxTokens: number) {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch("/.netlify/functions/llm-experiment", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: MODEL,
         messages,
-        max_completion_tokens: maxTokens,
-        response_format: { type: "text" },
+        maxTokens,
+        model: MODEL, // not used by the function yet, but harmless
       }),
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
-    return data?.choices?.[0]?.message?.content?.trim?.() ?? "";
+
+    const text = await res.text();
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`Bad JSON from server: ${text}`);
+    }
+
+    if (!res.ok) {
+      throw new Error(data || `HTTP ${res.status}`);
+    }
+
+    return (data.content as string) ?? "";
   }
 
   function FormattedText({ text }: { text: string }) {
@@ -82,7 +89,7 @@ export default function LLMExperiment() {
             .split(/(?<=[.!?])\s+/)
             .map((s) => s.trim())
             .filter(Boolean);
-        return (
+          return (
             <div key={i} className="space-y-2">
               {sentences.map((s, k) => (
                 <p key={k}>{s}</p>
