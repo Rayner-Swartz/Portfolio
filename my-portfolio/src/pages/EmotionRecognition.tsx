@@ -16,14 +16,15 @@ export default function EmotionRecognition() {
 
   return (
     <div className="relative min-h-screen bg-black text-gray-200 px-6 py-5 overflow-x-hidden">
-      {/* Right-side blue tint (unchanged) */}
+      {/* Right-side blue tint */}
       <div
         aria-hidden
-        className="pointer-events-none absolute top-0 bottom-0 left-[50%] right-0 bg-blue-400/5 z-0"
+        className="pointer-events-none absolute bottom-0 left-[50%] right-0 bg-blue-400/5"
+        style={{ top: '10rem', zIndex: 1 }}
       />
 
       {/* Main layout */}
-      <div className="relative z-10 flex flex-col items-center">
+      <div className="relative flex flex-col items-center mt-5" style={{ zIndex: 2 }}>
         {/* Title */}
         <motion.h1
           className="text-3xl sm:text-4xl font-bold mb-6 pb-1 bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400 bg-clip-text text-transparent animate-gradient"
@@ -167,14 +168,7 @@ export default function EmotionRecognition() {
         </div>
 
         {/* Back button — no fade */}
-        <div className="w-full flex justify-center mt-12">
-          <a
-            href="/#projects"
-            className="inline-block px-6 py-3 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition"
-          >
-            ← Back to Portfolio
-          </a>
-        </div>
+        
       </div>
     </div>
   );

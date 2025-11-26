@@ -149,11 +149,39 @@ export default function LLMExperiment() {
       const parts: React.ReactNode[] = [];
       let rest = body;
       let idx = 0;
-      const tagRe = /<(DEB|REF)>(.*?)<\/\1>/i;
+      const tagRe = /<(DEB|REF)>(.*?)<\/\1>/gi;
       while (true) {
-        const m = rest.match(tagRe);
+        const m = tagRe.exec(rest);
         if (!m) {
-          if (rest) parts.push(<span key={`${key}-tail-${idx++}`}>{rest}</span>);
+          if (rest) {
+            // Auto-colorize standalone "Debator" and "Refuter" words if not already wrapped
+            const autoColorized = rest.replace(
+              /\b(Debator|Refuter)\b/g, 
+              (match, word) => {
+                const color = word.toLowerCase() === "debator" ? "text-blue-400" : "text-pink-400";
+                return `<span class="${color}">${word}</span>`;
+              }
+            );
+            
+            if (autoColorized !== rest) {
+              // If we made changes, parse the HTML-like spans
+              const htmlParts = autoColorized.split(/(<span class="[^"]*">[^<]*<\/span>)/);
+              htmlParts.forEach((part, i) => {
+                const spanMatch = part.match(/<span class="([^"]*)">(.*?)<\/span>/);
+                if (spanMatch) {
+                  parts.push(
+                    <span key={`${key}-auto-${idx++}`} className={spanMatch[1]}>
+                      {spanMatch[2]}
+                    </span>
+                  );
+                } else if (part) {
+                  parts.push(<span key={`${key}-text-${idx++}`}>{part}</span>);
+                }
+              });
+            } else {
+              parts.push(<span key={`${key}-tail-${idx++}`}>{rest}</span>);
+            }
+          }
           break;
         }
         const [full, tag, inner] = m;
@@ -168,6 +196,7 @@ export default function LLMExperiment() {
           </span>
         );
         rest = rest.slice((m.index ?? 0) + full.length);
+        tagRe.lastIndex = 0; // Reset for next iteration
       }
 
       return (
@@ -184,27 +213,58 @@ export default function LLMExperiment() {
           const title = sec.title.replace(/:$/, "");
           const isWinner = /^Winner\b/i.test(sec.title);
           const isScore = /^Score\b/i.test(sec.title);
+          const isSummary = /^Summary\b/i.test(sec.title);
+          const isStrengthsOrWeaknesses = /^(Strengths|Weaknesses)\b/i.test(sec.title);
 
-          if (isWinner || isScore) {
-            // Single-line conclusion sections
+          if (isWinner || isScore || isSummary) {
+            // Single-line conclusion sections and summary - no bullets, combine all items into paragraphs
             return (
-              <div key={`sec-${i}`}>
+              <div key={`sec-${i}`} className="space-y-2">
                 <h4 className="text-gray-100 font-bold">{title}</h4>
-                {sec.items.map((it, j) => renderInline(it, `c-${i}-${j}`))}
+                <div className="space-y-1">
+                  {sec.items.map((it, j) => (
+                    <div key={`p-${i}-${j}`}>{renderInline(it, `p-${i}-${j}`)}</div>
+                  ))}
+                </div>
               </div>
             );
           }
 
+          if (isStrengthsOrWeaknesses) {
+            // For Strengths/Weaknesses, only create bullets for lines that start with "Debator —" or "Refuter —"
+            const bulletItems = sec.items.filter(item => /^(Debator|Refuter)\s*—/i.test(item));
+            const nonBulletItems = sec.items.filter(item => !/^(Debator|Refuter)\s*—/i.test(item));
+            
+            return (
+              <div key={`sec-${i}`} className="space-y-2">
+                <h4 className="text-gray-100 font-bold">{title}</h4>
+                {nonBulletItems.length > 0 && (
+                  <div className="space-y-1">
+                    {nonBulletItems.map((it, j) => (
+                      <div key={`p-${i}-${j}`}>{renderInline(it, `p-${i}-${j}`)}</div>
+                    ))}
+                  </div>
+                )}
+                {bulletItems.length > 0 && (
+                  <ul className="list-disc list-inside space-y-1">
+                    {bulletItems.map((it, j) => (
+                      <li key={`li-${i}-${j}`}>{renderInline(it, `li-${i}-${j}`)}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          }
+
+          // Default case - other sections
           return (
             <div key={`sec-${i}`} className="space-y-2">
               <h4 className="text-gray-100 font-bold">{title}</h4>
-              <ul className="list-disc list-inside space-y-1">
-                {sec.items
-                  .filter((s) => s && s !== "•")
-                  .map((it, j) => (
-                    <li key={`li-${i}-${j}`}>{renderInline(it, `li-${i}-${j}`)}</li>
-                  ))}
-              </ul>
+              <div className="space-y-1">
+                {sec.items.map((it, j) => (
+                  <div key={`p-${i}-${j}`}>{renderInline(it, `p-${i}-${j}`)}</div>
+                ))}
+              </div>
             </div>
           );
         })}
@@ -284,10 +344,10 @@ export default function LLMExperiment() {
       "Criteria: Clarity, Evidence/Specificity, Responsiveness, Novelty.\n" +
       "Formatting rules (MANDATORY):\n" +
       "- Use EXACT headings: Summary / Strengths / Weaknesses / Winner: / Score:\n" +
-      "- Under Summary, Strengths, Weaknesses, output ONLY hyphen bullets like `- text`.\n" +
       "- No standalone bullet markers, no decorative dots, no empty bullets.\n" +
-      "- When you mention the Debator inline, wrap text in <DEB>…</DEB>; for Refuter, <REF>…</REF>.\n" +
-      "- Strengths/Weaknesses bullets should start with `Debator —` or `Refuter —` when referring to a side.\n" +
+      "- When you mention the Debator inline in ANY section, wrap text in <DEB>…</DEB>; for Refuter, <REF>…</REF>.\n" +
+      "- Strengths/Weaknesses should start with `Debator —` or `Refuter —` when referring to a side.\n" +
+      "- In Summary, also use <DEB>Debator</DEB> and <REF>Refuter</REF> tags for color coding.\n" +
       "- Keep it concise and scannable.";
 
     const transcript = history
