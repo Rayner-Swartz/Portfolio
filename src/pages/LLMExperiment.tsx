@@ -12,7 +12,7 @@ export default function LLMExperiment() {
   const [error, setError] = useState("");
   const [verdict, setVerdict] = useState<string>("");
 
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  const apiKey = import.meta.env.OPENAI_API_KEY;
   const MODEL = "gpt-4.1-nano";
   const MAX_ROUNDS = 5;
 
