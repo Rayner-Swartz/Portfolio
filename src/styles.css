@@ -1,0 +1,83 @@
+/* styles.css — custom utilities layered on top of Tailwind v4 output */
+
+/* --- Animated gradient text (title) --- */
+@layer utilities {
+  @keyframes gradientMove {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+  }
+  .animate-gradient {
+    animation: gradientMove 8s ease-in-out infinite alternate;
+    background-size: 300% 100%;
+  }
+  .gradient-text {
+    color: transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
+    background-image: linear-gradient(
+      90deg,
+      #60a5fa 0%,
+      #93c5fd 25%,
+      #67e8f9 50%,
+      #93c5fd 75%,
+      #60a5fa 100%
+    );
+    background-size: 300% 100%;
+    animation: gradientMove 8s ease-in-out infinite alternate;
+  }
+}
+
+/* --- Blue-ish “gradient-line” filter for black svgs/lines --- */
+@layer utilities {
+  .gradient-line {
+    filter:
+      brightness(0) saturate(100%)
+      invert(35%) sepia(82%) saturate(1210%)
+      hue-rotate(185deg) brightness(105%) contrast(105%);
+    mix-blend-mode: screen;
+  }
+}
+
+/* --- Paragraph baseline (optional; remove if you don't want it global) --- */
+@layer base {
+  p {
+    /* Tailwind still understands @apply in v4 when processed via PostCSS */
+    @apply max-w-3xl text-left text-gray-700 mb-0 text-sm;
+  }
+  
+  /* Force langflow-chat web component to fill its container */
+  langflow-chat {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* --- Soft glow for “DS” style headers/icons --- */
+@layer utilities {
+  @keyframes dsGlow {
+    0%, 100% {
+      filter:
+        drop-shadow(0 0 6px rgba(59,130,246,0.2))
+        drop-shadow(0 0 14px rgba(37,99,235,0.2))
+        drop-shadow(0 0 18px rgba(37,99,235,0.35));
+    }
+    50% {
+      filter:
+        drop-shadow(0 0 10px rgba(96,165,250,0.5))
+        drop-shadow(0 0 20px rgba(59,130,246,0.35))
+        drop-shadow(0 0 24px rgba(37,99,235,0.35));
+    }
+    25%, 75% {
+      filter:
+        drop-shadow(0 0 8px rgba(96,165,250,0.4))
+        drop-shadow(0 0 18px rgba(59,130,246,0.35))
+        drop-shadow(0 0 20px rgba(37,99,235,0.3));
+    }
+  }
+  .animate-dsGlow {
+    animation: dsGlow 7.5s cubic-bezier(.4,0,.6,1) infinite;
+    will-change: filter;
+  }
+}
+
