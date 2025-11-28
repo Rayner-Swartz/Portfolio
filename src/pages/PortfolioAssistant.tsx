@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import LangflowChat from "../components/LangflowChat";
+import { LangflowChat } from "../components/LangflowChat";
+
 
 function SectionWithFade({ title, children }: { title: string; children: React.ReactNode }) {
   return (
