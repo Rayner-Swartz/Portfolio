@@ -4,22 +4,6 @@ import type { Handler } from "@netlify/functions";
 const FLOW_URL =
   "https://langflow-b2pn.sliplane.app/api/v1/run/bdb4b66d-00b1-4f98-8d31-c207b67b6ecf";
 
-// Minimal timeout wrapper so we fail cleanly instead of sandbox hard timeout
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeoutMs = 27000
-): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(id);
-  }
-}
-
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return {
@@ -50,7 +34,6 @@ export const handler: Handler = async (event) => {
         ? globalThis.crypto.randomUUID()
         : require("crypto").randomUUID());
 
-    // Same payload as your PowerShell test
     const payload = {
       input_type: "chat",
       output_type: "chat",
@@ -58,41 +41,15 @@ export const handler: Handler = async (event) => {
       session_id: sessionId,
     };
 
-    // --- Call Langflow with timeout ---
-    let lfResponse: Response;
-    try {
-      lfResponse = await fetchWithTimeout(
-        FLOW_URL,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-          },
-          body: JSON.stringify(payload),
-        },
-        27000 // ~27s, under Netlify's hard limit
-      );
-    } catch (err: any) {
-      if (err?.name === "AbortError") {
-        return {
-          statusCode: 504,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            error: "Langflow request timed out",
-          }),
-        };
-      }
-
-      return {
-        statusCode: 502,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          error: "Error calling Langflow",
-          details: err?.message ?? String(err),
-        }),
-      };
-    }
+    // 🔹 No timeout wrapper, just plain fetch like before
+    const lfResponse = await fetch(FLOW_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify(payload),
+    });
 
     const text = await lfResponse.text();
 
@@ -162,13 +119,13 @@ export const handler: Handler = async (event) => {
       };
     }
 
+    // ✅ Only final markdown string now
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session_id: json.session_id ?? sessionId,
-        message: messageText, // ✅ FINAL markdown string only
-        // raw: json, // ❌ removed to avoid insane payloads
+        message: messageText,
       }),
     };
   } catch (err: any) {
