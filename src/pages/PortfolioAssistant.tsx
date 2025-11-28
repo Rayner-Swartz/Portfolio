@@ -101,9 +101,7 @@ export default function PortfolioAssistant() {
                 <h3 className="text-lg font-semibold gradient-text animate-gradient">
                   Competitor Analysis AI agent
                 </h3>
-                <p className="text-sm text-gray-400 mt-1">
-                  Ask me anything about a potential competitor's products, services, and market positioning.
-                </p>
+                
               </div>
               <div className="flex-1">
                 <LangflowChat />

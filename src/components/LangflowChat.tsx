@@ -1,8 +1,7 @@
 // src/components/LangflowChat.tsx
 import React, { useState } from "react";
 import { useLangflowChat } from "../hooks/useLangflowChat";
-// If you want markdown formatting, install react-markdown and uncomment:
-// import ReactMarkdown from "react-markdown";
+import ReactMarkdown from "react-markdown";
 
 export function LangflowChat() {
   const [input, setInput] = useState("");
@@ -34,10 +33,10 @@ export function LangflowChat() {
         {reply && (
           <div className="mr-auto max-w-[90%] rounded-lg px-3 py-2 bg-gray-800/70 border border-gray-700 whitespace-pre-wrap">
             {/* Plain text: */}
-            {reply}
+            
 
             {/* Or, if using markdown, swap the above line for this: */}
-            {/* <ReactMarkdown>{reply}</ReactMarkdown> */}
+            {<ReactMarkdown>{reply}</ReactMarkdown>}
           </div>
         )}
 
