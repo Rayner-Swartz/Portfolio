@@ -4,24 +4,15 @@ import type { Handler } from "@netlify/functions";
 const FLOW_URL =
   "https://langflow-b2pn.sliplane.app/api/v1/run/bdb4b66d-00b1-4f98-8d31-c207b67b6ecf";
 
-// Simple fallback session ID generator (no crypto)
-function generateSessionId(): string {
-  return (
-    "sess_" +
-    Date.now().toString(36) +
-    "_" +
-    Math.random().toString(36).slice(2)
-  );
-}
-
-// Optional timeout wrapper
+// Minimal timeout wrapper so we fail cleanly instead of sandbox hard timeout
 async function fetchWithTimeout(
   url: string,
   options: RequestInit,
-  timeoutMs = 20000
+  timeoutMs = 27000
 ): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
@@ -57,8 +48,9 @@ export const handler: Handler = async (event) => {
       body.session_id ??
       (globalThis.crypto?.randomUUID
         ? globalThis.crypto.randomUUID()
-        : generateSessionId());
+        : require("crypto").randomUUID());
 
+    // Same payload as your PowerShell test
     const payload = {
       input_type: "chat",
       output_type: "chat",
@@ -66,7 +58,7 @@ export const handler: Handler = async (event) => {
       session_id: sessionId,
     };
 
-    // Call Langflow (with timeout fallback)
+    // --- Call Langflow with timeout ---
     let lfResponse: Response;
     try {
       lfResponse = await fetchWithTimeout(
@@ -79,14 +71,16 @@ export const handler: Handler = async (event) => {
           },
           body: JSON.stringify(payload),
         },
-        20000
+        27000 // ~27s, under Netlify's hard limit
       );
     } catch (err: any) {
       if (err?.name === "AbortError") {
         return {
           statusCode: 504,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ error: "Langflow request timed out" }),
+          body: JSON.stringify({
+            error: "Langflow request timed out",
+          }),
         };
       }
 
@@ -102,7 +96,7 @@ export const handler: Handler = async (event) => {
 
     const text = await lfResponse.text();
 
-    // JSON parse check
+    // Try to parse JSON from Langflow, but don’t explode if it’s HTML error
     let json: any;
     try {
       json = JSON.parse(text);
@@ -112,7 +106,8 @@ export const handler: Handler = async (event) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           error: "Non-JSON response from Langflow",
-          raw: text.slice(0, 400),
+          status: lfResponse.status,
+          raw: text.slice(0, 500),
         }),
       };
     }
@@ -128,29 +123,31 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // ---- FIXED: Extract EXACTLY ONE clean answer ----
-    const rootOutput =
+    // ---- Extract ONE clean assistant message ----
+    const lfOutput =
       json?.outputs?.[0]?.outputs?.[0] ??
       json?.outputs?.[0] ??
       null;
 
     let messageText: string | null = null;
 
-    if (rootOutput) {
-      // 1) Standard Langflow ChatOutput
-      if (typeof rootOutput?.artifacts?.message === "string") {
-        messageText = rootOutput.artifacts.message;
+    if (lfOutput) {
+      // 1) Preferred: ChatOutput.artifacts.message
+      if (typeof lfOutput?.artifacts?.message === "string") {
+        messageText = lfOutput.artifacts.message;
       }
-      // 2) results.message array
+      // 2) results.message is an array of { message, type }
       else if (
-        Array.isArray(rootOutput?.results?.message) &&
-        typeof rootOutput.results.message[0]?.message === "string"
+        Array.isArray(lfOutput?.results?.message) &&
+        typeof lfOutput.results.message[0]?.message === "string"
       ) {
-        messageText = rootOutput.results.message[0].message;
+        messageText = lfOutput.results.message[0].message;
       }
-      // 3) outputs.message.message
-      else if (typeof rootOutput?.outputs?.message?.message === "string") {
-        messageText = rootOutput.outputs.message.message;
+      // 3) outputs.message.message fallback
+      else if (
+        typeof lfOutput?.outputs?.message?.message === "string"
+      ) {
+        messageText = lfOutput.outputs.message.message;
       }
     }
 
@@ -160,18 +157,18 @@ export const handler: Handler = async (event) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           error:
-            "Could not extract ChatOutput message. Check Langflow wiring.",
+            "Could not extract message from Langflow response. Check ChatOutput wiring.",
         }),
       };
     }
 
-    // ---- CLEAN FINAL OUTPUT (markdown-friendly) ----
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session_id: json.session_id ?? sessionId,
-        message: messageText, // ONLY ONE FINAL ANSWER
+        message: messageText, // ✅ FINAL markdown string only
+        // raw: json, // ❌ removed to avoid insane payloads
       }),
     };
   } catch (err: any) {
