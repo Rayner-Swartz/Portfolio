@@ -1,92 +1,112 @@
-export const config = {
-  runtime: "nodejs18",
-};
+// netlify/functions/langflow-chat.ts
+import type { Handler } from "@netlify/functions";
 
-const LANGFLOW_URL =
+const FLOW_URL =
   "https://langflow-b2pn.sliplane.app/api/v1/run/bdb4b66d-00b1-4f98-8d31-c207b67b6ecf";
 
-export default async (req: Request) => {
-  if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+export const handler: Handler = async (event) => {
+  if (event.httpMethod !== "POST") {
+    return {
+      statusCode: 405,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "Method not allowed" }),
+    };
   }
-
-  let body: any;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response(
-      JSON.stringify({ error: "Invalid JSON body" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
-  const message = body.message ?? body.input ?? "hello";
-  const sessionId = body.sessionId ?? crypto.randomUUID();
-
-  const langflowApiKey = process.env.LANGFLOW_API_KEY;
-  if (!langflowApiKey) {
-    return new Response(
-      JSON.stringify({ error: "Missing LANGFLOW_API_KEY in Netlify env" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
-  const payload = {
-    input_type: "chat",
-    output_type: "chat",
-    input_value: message,
-    session_id: sessionId,
-    // If you tweaked anything in Langflow’s “Code → configuration” section,
-    // mirror it here (tweaks, etc). Otherwise this basic shape is fine.
-  };
 
   try {
-    const res = await fetch(LANGFLOW_URL, {
+    const apiKey = process.env.LANGFLOW_API_KEY;
+    if (!apiKey) {
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: "Missing LANGFLOW_API_KEY in environment",
+        }),
+      };
+    }
+
+    const body = event.body ? JSON.parse(event.body) : {};
+    const userMessage: string = body.message ?? "hello from Netlify";
+    const sessionId: string =
+      body.session_id ??
+      (globalThis.crypto?.randomUUID
+        ? globalThis.crypto.randomUUID()
+        : require("crypto").randomUUID());
+
+    // This payload is the same as your PowerShell payload
+    const payload = {
+      input_type: "chat",
+      output_type: "chat",
+      input_value: userMessage,
+      session_id: sessionId,
+    };
+
+    const lfResponse = await fetch(FLOW_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": langflowApiKey,
+        "x-api-key": apiKey,
       },
       body: JSON.stringify(payload),
     });
 
-    const text = await res.text();
+    const text = await lfResponse.text();
 
-    if (!res.ok) {
-      // Bubble Langflow error up so we can see it clearly in logs
-      return new Response(
-        JSON.stringify({
-          error: "Langflow returned non-OK status",
-          status: res.status,
-          body: text,
-        }),
-        { status: 502, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // Try to parse JSON, otherwise return raw text
+    // Try to parse JSON from Langflow, but don’t explode if it’s HTML error
+    let json: any;
     try {
-      const data = JSON.parse(text);
-      return new Response(JSON.stringify(data), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      json = JSON.parse(text);
     } catch {
-      return new Response(
-        JSON.stringify({
-          error: "Langflow response was not valid JSON",
-          body: text,
+      return {
+        statusCode: lfResponse.status || 502,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: "Non-JSON response from Langflow",
+          status: lfResponse.status,
+          raw: text.slice(0, 500),
         }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+      };
     }
-  } catch (err: any) {
-    return new Response(
-      JSON.stringify({
-        error: "Error calling Langflow",
-        details: String(err?.message ?? err),
+
+    if (!lfResponse.ok) {
+      return {
+        statusCode: lfResponse.status,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: "Langflow error",
+          details: json,
+        }),
+      };
+    }
+
+    // Extract the actual assistant text from the Langflow structure you pasted
+    const lfOutput =
+      json?.outputs?.[0]?.outputs?.[0] ??
+      json?.outputs?.[0] ??
+      null;
+
+    const messageText =
+      lfOutput?.artifacts?.message ??
+      lfOutput?.results?.message?.text ??
+      null;
+
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: json.session_id ?? sessionId,
+        message: messageText,
+        raw: json, // keep for debugging, drop later if you want
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    };
+  } catch (err: any) {
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        error: "Internal error in langflow-chat function",
+        details: err?.message ?? String(err),
+      }),
+    };
   }
 };
