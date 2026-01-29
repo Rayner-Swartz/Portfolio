@@ -194,7 +194,7 @@ export default function About() {
                 <Chip label="Feature Engineering" variant="amber" />
                 <Chip label="Feature Extraction" variant="amber" />
                 <Chip label="Visualization" variant="amber" />
-                
+                <Chip label="PowerBI" variant="amber" />
               </CategoryCard>
                       
 

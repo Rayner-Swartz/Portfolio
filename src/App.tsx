@@ -85,12 +85,12 @@ export default function App() {
 </section>
 
 {/* ===== Featured Projects ===== */}
-<section id="projects" className="w-full max-w-7xl mx-auto mt-0 px-6">
-  <h2 className="text-2xl sm:text-3xl font-bold mb-8 text-center gradient-text animate-gradient">
+<section id="projects" className="w-full max-w-7xl mx-auto mt-10 px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-center gradient-text animate-gradient">
     Featured Projects
   </h2>
 
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
     {/* Project 1 */}
     <Link to="/projects/emotion-recognition" className="group bg-black/40 border border-blue-500/20 rounded-xl p-6 hover:border-blue-400/50 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition block">
@@ -154,6 +154,34 @@ export default function App() {
     </Link>
 
   </div>
+</section>
+{/* ===== Power BI Showcase ===== */}
+<section
+  id="powerbi"
+  className="w-full max-w-6xl mx-auto mt-20 px-6 mt-10 flex flex-col items-center"
+>
+  <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center gradient-text animate-gradient">
+    Data Visualisation & Analytics
+  </h2>
+
+  <p className="text-gray-400 text-sm sm:text-base max-w-3xl text-center mb-8">
+    An interactive Power BI dashboard analysing New Zealand dwelling growth by
+    region over time, featuring dynamic titles, slicer-driven insights, and
+    spatial visualisation.
+  </p>
+
+  {/* Video container */}
+  <div className="rounded-xl overflow-hidden border border-blue-500/20 bg-black/40 shadow-[0_0_40px_rgba(59,130,246,0.35)]" style={{ maxWidth: '512px', margin: '0 auto' }}>
+    <video
+      src="/Power_web.mp4"
+      className="w-full h-auto object-contain"
+      controls
+      playsInline
+      autoPlay
+      muted
+      loop
+    />
+  </div> 
 </section>
 
     </div>
